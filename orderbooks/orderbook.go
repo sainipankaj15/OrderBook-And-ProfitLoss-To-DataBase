@@ -266,3 +266,8 @@ func (ob *OrderBook) GetDailySummary(ctx context.Context, date time.Time) (*Dail
 func (ob *OrderBook) Close(ctx context.Context) error {
 	return ob.client.Disconnect(ctx)
 }
+
+// GetMongoClient returns the MongoDB client
+func (ob *OrderBook) GetMongoClient() *mongo.Client {
+	return ob.client
+}

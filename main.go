@@ -11,7 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"profitLossAndTradeInfoToDB/constants"
 	orderbook "profitLossAndTradeInfoToDB/orderbooks"
+	"profitLossAndTradeInfoToDB/pkg/profitLossGraph"
 
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
@@ -52,15 +54,35 @@ func main() {
 		}
 	}()
 
+	// Get MongoDB database instance from OrderBook
+	// Note: You'll need to expose the DB from OrderBook or create a new connection
+	mongoClient := ob.GetMongoClient()            // You'll need to add this method to OrderBook
+	db := mongoClient.Database(constants.DB_NAME) // Use the same database as OrderBook
+
+	// Initialize ProfitLoss repository and service
+	plRepo, err := profitLossGraph.NewRepository(db)
+	if err != nil {
+		log.Fatalf("Failed to initialize ProfitLoss repository: %v", err)
+	}
+
+	prl, err := plRepo.GetProfitLossByDateRange(ctx, time.Now().AddDate(0, 0, -1), time.Now())
+	if err != nil {
+		log.Fatalf("Failed to get profit loss: %v", err)
+	}
+
+	fmt.Println(prl)
+
+	plService := profitLossGraph.NewService(plRepo)
+
 	// Process files based on date
-	if err := processFiles(ctx, ob, config); err != nil {
+	if err := processFiles(ctx, ob, plService, config); err != nil {
 		log.Fatalf("Failed to process files: %v", err)
 	}
 
 	// Get and display summary
-	if err := displaySummary(ctx, ob, config); err != nil {
-		log.Fatalf("Failed to display summary: %v", err)
-	}
+	// if err := displaySummary(ctx, ob, config); err != nil {
+	// 	log.Fatalf("Failed to display summary: %v", err)
+	// }
 }
 
 func parseFlags() Config {
@@ -78,13 +100,27 @@ func parseFlags() Config {
 	return config
 }
 
-func processFiles(ctx context.Context, ob *orderbook.OrderBook, config Config) error {
+func processFiles(ctx context.Context, ob *orderbook.OrderBook, plService *profitLossGraph.Service, config Config) error {
 	// Parse the process date
 	processDate, err := time.Parse("2006-01-02", config.ProcessDate)
 	if err != nil {
 		return fmt.Errorf("invalid date format: %v", err)
 	}
 
+	// Process orderbook files
+	if err := processOrderBookFiles(ctx, ob, config, processDate); err != nil {
+		return fmt.Errorf("failed to process orderbook files: %v", err)
+	}
+
+	// Process profit/loss file
+	if err := plService.ProcessDailyProfitLoss(ctx, processDate); err != nil {
+		return fmt.Errorf("failed to process profit/loss file: %v", err)
+	}
+
+	return nil
+}
+
+func processOrderBookFiles(ctx context.Context, ob *orderbook.OrderBook, config Config, processDate time.Time) error {
 	// Find CSV files for the specified date
 	pattern := fmt.Sprintf("*%s*.csv", processDate.Format("02-01-06"))
 	matches, err := filepath.Glob(filepath.Join(config.CSVDir, pattern))
@@ -101,11 +137,16 @@ func processFiles(ctx context.Context, ob *orderbook.OrderBook, config Config) e
 	errorChan := make(chan error, len(matches))
 
 	for _, file := range matches {
+		// Skip profit/loss files
+		if filepath.Base(file)[:10] == "profitLoss" {
+			continue
+		}
+
 		wg.Add(1)
 		go func(filename string) {
 			defer wg.Done()
 
-			log.Printf("Processing file: %s", filename)
+			log.Printf("Processing orderbook file: %s", filename)
 			if err := ob.LoadCSVFile(ctx, filename); err != nil {
 				errorChan <- fmt.Errorf("failed to process %s: %v", filename, err)
 				return
@@ -153,7 +194,6 @@ func displaySummary(ctx context.Context, ob *orderbook.OrderBook, config Config)
 }
 
 func init() {
-
 	// Load .env file
 	err := godotenv.Load(".env")
 	if err != nil {
