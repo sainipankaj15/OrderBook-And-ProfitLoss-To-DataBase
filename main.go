@@ -109,12 +109,12 @@ func processFiles(ctx context.Context, ob *orderbook.OrderBook, plService *profi
 
 	// Process orderbook files
 	if err := processOrderBookFiles(ctx, ob, config, processDate); err != nil {
-		return fmt.Errorf("failed to process orderbook files: %v", err)
+		fmt.Println("failed to process orderbook files: ", err)
 	}
 
 	// Process profit/loss file
 	if err := plService.ProcessDailyProfitLoss(ctx, processDate); err != nil {
-		return fmt.Errorf("failed to process profit/loss file: %v", err)
+		fmt.Println("failed to process profit/loss file: ", err)
 	}
 
 	return nil
