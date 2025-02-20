@@ -132,7 +132,7 @@ func (ob *OrderBook) LoadCSVFile(ctx context.Context, filename string) error {
 		}
 
 		fmt.Println("All record", record[0], record[1], record[2], record[3], record[4], record[5], record[6])
-		timestamp, err := time.Parse("2006-01-02T15:04:05Z", record[0])
+		timestamp, err := time.Parse("2006-01-02T15:04:05-07:00", record[0])
 		if err != nil {
 			return fmt.Errorf("failed to parse timestamp: %v", err)
 		}
