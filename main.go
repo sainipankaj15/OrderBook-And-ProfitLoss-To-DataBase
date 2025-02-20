@@ -122,7 +122,7 @@ func processFiles(ctx context.Context, ob *orderbook.OrderBook, plService *profi
 
 func processOrderBookFiles(ctx context.Context, ob *orderbook.OrderBook, config Config, processDate time.Time) error {
 	// Find CSV files for the specified date
-	pattern := fmt.Sprintf("*%s*.csv", processDate.Format("02-01-06"))
+	pattern := fmt.Sprintf("orderbook_*%s*.csv", processDate.Format("02-01-2006"))
 	matches, err := filepath.Glob(filepath.Join(config.CSVDir, pattern))
 	if err != nil {
 		return fmt.Errorf("failed to find CSV files: %v", err)
