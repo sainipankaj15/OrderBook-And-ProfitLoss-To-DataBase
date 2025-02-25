@@ -195,7 +195,7 @@ func displaySummary(ctx context.Context, ob *orderbook.OrderBook, config Config)
 
 func init() {
 	// Load .env file
-	err := godotenv.Load(".env")
+	err := godotenv.Load("profitLossAndTradeBookToDB.env")
 	if err != nil {
 		log.Fatal("Error loading .env file", zap.Error(err))
 		return
